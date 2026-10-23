@@ -22,6 +22,8 @@ public partial class MainWindow : Window
             return dlg.ShowDialog(this) == true ? dlg.FolderName : null;
         };
         DataContext = _vm;
+        UpdateThemeButton();
+        SourceInitialized += (_, _) => Theme.ApplyTitleBar(this);
         Loaded += async (_, _) => await _vm.Refresh();
         _timer.Tick += (_, _) => _vm.RefreshLaunchers();
         _timer.Start();
@@ -35,4 +37,14 @@ public partial class MainWindow : Window
     }
 
     void LogBox_TextChanged(object sender, TextChangedEventArgs e) => LogBox.ScrollToEnd();
+
+    void ThemeButton_Click(object sender, RoutedEventArgs e)
+    {
+        Theme.Apply(!Theme.IsDark);
+        _vm.AppSettings.Theme = Theme.IsDark ? "dark" : "light";
+        _vm.AppSettings.Save();
+        UpdateThemeButton();
+    }
+
+    void UpdateThemeButton() => ThemeButton.Content = Theme.IsDark ? "☀ Light mode" : "\U0001F319 Dark mode";
 }

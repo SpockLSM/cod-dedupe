@@ -4,6 +4,8 @@ Keep Call of Duty installed through the **Xbox app, Steam and Battle.net** at th
 
 ![CoD Dedupe](docs/screenshot.png)
 
+*Also in [dark](docs/screenshot-dark.png).*
+
 COD Points stay on the store you bought them in, so some players keep CoD installed through more than one store. Each install is well over 100 GB, and almost all of it is the same files. CoD Dedupe finds your installs and makes them share one copy. Each store still sees a complete, normal install.
 
 On the PC it was built on, three installs that would take about 470 GB use about 230 GB.
@@ -17,6 +19,7 @@ Each store keeps its own install folder. The app finds game data files that are 
 - **Nothing is linked without a full byte-by-byte compare first.** If one store is on a different patch, whatever differs keeps its own copy.
 - **Hard links aren't shortcuts.** No store can tell the difference, and uninstalling one store leaves the other installs complete.
 - **Cancel any time.** Each file is either linked or still a normal file; nothing is left half-done.
+- **Light and dark**: follows your Windows setting, or pick one with the button in the corner.
 
 ## Requirements
 

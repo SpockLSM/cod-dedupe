@@ -11,6 +11,8 @@ public sealed class Settings
     public string? Main { get; set; }
     public string? MainRoot { get; set; }
     public Dictionary<string, string>? ExtraFolders { get; set; }
+    /// <summary>"light", "dark", or null to follow Windows.</summary>
+    public string? Theme { get; set; }
 
     public static string Folder =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodSharedInstall");

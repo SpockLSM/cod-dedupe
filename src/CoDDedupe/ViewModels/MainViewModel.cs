@@ -15,6 +15,7 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<InstallVm> Installs { get; } = new();
     public ObservableCollection<string> RunningLaunchers { get; } = new();
+    public Settings AppSettings => _settings;
 
     public RelayCommand RefreshCommand { get; }
     public RelayCommand PreviewCommand { get; }

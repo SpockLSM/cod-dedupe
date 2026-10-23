@@ -3,13 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:CoDDedupe.ViewModels"
         Title="CoD Dedupe" Width="980" Height="720" MinWidth="820" MinHeight="560"
-        WindowStartupLocation="CenterScreen" Background="{StaticResource WindowBg}"
-        FontFamily="Segoe UI" FontSize="13" Foreground="{StaticResource Text}"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource WindowBg}"
+        FontFamily="Segoe UI" FontSize="13" Foreground="{DynamicResource Text}"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
 
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:InstallVm}">
-            <Border BorderBrush="{StaticResource PanelBorder}" BorderThickness="0,0,0,1" Padding="4,10">
+            <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,0,0,1" Padding="4,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -20,14 +20,14 @@
                     <StackPanel Grid.Column="1">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
-                            <Border Background="#DBEAFE" CornerRadius="10" Padding="8,1" Margin="10,0,0,0" VerticalAlignment="Center"
+                            <Border Background="{DynamicResource InfoBg}" CornerRadius="10" Padding="8,1" Margin="10,0,0,0" VerticalAlignment="Center"
                                     Visibility="{Binding IsMain, Converter={StaticResource BoolVis}}">
-                                <TextBlock Text="main: never modified" FontSize="11" Foreground="#1E40AF"/>
+                                <TextBlock Text="main: never modified" FontSize="11" Foreground="{DynamicResource InfoText}"/>
                             </Border>
                         </StackPanel>
-                        <TextBlock Text="{Binding Root}" Foreground="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Root}"/>
+                        <TextBlock Text="{Binding Root}" Foreground="{DynamicResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Root}"/>
                         <TextBlock Text="{Binding Detail}" FontSize="12" Margin="0,2,0,0" Visibility="{Binding Detail, Converter={StaticResource BoolVis}}"/>
-                        <TextBlock Text="{Binding Note}" FontSize="12" Foreground="#B45309" Margin="0,2,0,0" Visibility="{Binding Note, Converter={StaticResource BoolVis}}"/>
+                        <TextBlock Text="{Binding Note}" FontSize="12" Foreground="{DynamicResource WarnText}" Margin="0,2,0,0" Visibility="{Binding Note, Converter={StaticResource BoolVis}}"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -47,18 +47,19 @@
         <!-- Header -->
         <DockPanel Grid.Row="0" Margin="0,0,0,12">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="ThemeButton" Click="ThemeButton_Click" Margin="0,0,8,0" ToolTip="Switch between light and dark"/>
                 <Button Content="Add folder..." Command="{Binding AddFolderCommand}" Margin="0,0,8,0" ToolTip="Add an install that wasn't found automatically"/>
                 <Button Content="Refresh" Command="{Binding RefreshCommand}"/>
             </StackPanel>
             <StackPanel>
                 <TextBlock Text="CoD Dedupe" FontSize="24" FontWeight="SemiBold"/>
-                <TextBlock Foreground="{StaticResource Muted}" TextWrapping="Wrap"
+                <TextBlock Foreground="{DynamicResource Muted}" TextWrapping="Wrap"
                            Text="Keep Call of Duty installed through the Xbox app, Steam and Battle.net while storing the game data on disk once."/>
             </StackPanel>
         </DockPanel>
 
         <!-- Launchers banner -->
-        <Border Grid.Row="1" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+        <Border Grid.Row="1" Background="{DynamicResource WarnBg}" BorderBrush="{DynamicResource WarnBorder}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
                 Visibility="{Binding LaunchersRunning, Converter={StaticResource BoolVis}}">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Content="Check again" Command="{Binding CheckLaunchersCommand}" Padding="10,4"/>
@@ -67,23 +68,29 @@
         </Border>
 
         <!-- Installs -->
-        <Border Grid.Row="2" Background="{StaticResource Panel}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="16,12">
+        <Border Grid.Row="2" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="16,12">
             <StackPanel>
                 <TextBlock Text="Call of Duty installs" FontSize="16" FontWeight="SemiBold"/>
-                <TextBlock Text="{Binding Hint}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,2,0,6"/>
+                <TextBlock Text="{Binding Hint}" Foreground="{DynamicResource Muted}" TextWrapping="Wrap" Margin="0,2,0,6"/>
                 <ItemsControl ItemsSource="{Binding Installs}"/>
-                <TextBlock Text="{Binding Status}" Foreground="{StaticResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding Status}" Foreground="{DynamicResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap"/>
             </StackPanel>
         </Border>
 
         <!-- Actions -->
-        <Border Grid.Row="3" Background="{StaticResource Panel}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,12,0,0">
+        <Border Grid.Row="3" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,12,0,0">
             <StackPanel>
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="Unshare" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Give one store its own separate copies again"/>
-                        <ComboBox ItemsSource="{Binding Installs}" SelectedItem="{Binding UnshareTarget}" DisplayMemberPath="Name" MinWidth="130" Margin="0,0,8,0"
-                                  IsEnabled="{Binding IsBusy, Converter={StaticResource Not}}"/>
+                        <ComboBox ItemsSource="{Binding Installs}" SelectedItem="{Binding UnshareTarget}" MinWidth="130" Margin="0,0,8,0"
+                                  IsEnabled="{Binding IsBusy, Converter={StaticResource Not}}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                         <Button Content="Go" Command="{Binding UnshareCommand}"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
@@ -99,17 +106,17 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <ProgressBar Grid.Row="0" Height="8" Value="{Binding Progress, Mode=OneWay}" IsIndeterminate="{Binding ProgressIndeterminate}" Maximum="100"/>
-                    <TextBlock Grid.Row="1" Text="{Binding Phase}" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="1" Text="{Binding Phase}" Foreground="{DynamicResource Muted}" FontSize="12" Margin="0,4,0,0"/>
                 </Grid>
-                <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,10,0,0"
+                <Border Background="{DynamicResource OkBg}" BorderBrush="{DynamicResource OkBorder}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,10,0,0"
                         Visibility="{Binding HasSummary, Converter={StaticResource BoolVis}}">
-                    <TextBlock Text="{Binding Summary}" FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap"/>
+                    <TextBlock Text="{Binding Summary}" FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" Foreground="{DynamicResource OkText}"/>
                 </Border>
             </StackPanel>
         </Border>
 
         <!-- Log -->
-        <Border Grid.Row="4" Background="{StaticResource Panel}" BorderBrush="{StaticResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,12,0,0">
+        <Border Grid.Row="4" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,12,0,0">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="Activity" FontWeight="SemiBold" Margin="0,0,0,4"/>
                 <TextBox x:Name="LogBox" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True" BorderThickness="0" Background="Transparent"
@@ -117,7 +124,7 @@
             </DockPanel>
         </Border>
 
-        <TextBlock Grid.Row="5" Margin="2,8,2,0" Foreground="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"
+        <TextBlock Grid.Row="5" Margin="2,8,2,0" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap"
                    Text="Run this again after every Call of Duty update, once every store has finished updating, to re-merge what the update split apart."/>
     </Grid>
 </Window>

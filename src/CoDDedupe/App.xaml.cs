@@ -10,6 +10,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // "--theme dark|light" for documentation; otherwise the saved choice, or whatever Windows is set to.
+        int t = Array.IndexOf(e.Args, "--theme");
+        Theme.Apply(Theme.FromSetting(t >= 0 && t + 1 < e.Args.Length ? e.Args[t + 1] : Core.Settings.Load().Theme));
+
         var window = new MainWindow();
         window.Show();
 
