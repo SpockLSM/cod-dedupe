@@ -12,8 +12,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>1.0.0</Version>
     <Product>CoD Dedupe</Product>
-    <Authors>Logan Miller</Authors>
-    <Copyright>Copyright (c) 2026 Logan Miller</Copyright>
+    <Authors>Spock</Authors>
+    <Copyright>Copyright (c) 2026 Spock</Copyright>
     <Description>Keep Call of Duty installed through the Xbox app, Steam and Battle.net while storing the game data once.</Description>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <DebugType>embedded</DebugType>
