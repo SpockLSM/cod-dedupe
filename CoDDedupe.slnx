@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CoDDedupe/CoDDedupe.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CoDDedupe.Tests/CoDDedupe.Tests.csproj" />
+  </Folder>
+</Solution>
