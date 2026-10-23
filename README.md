@@ -1,3 +1,5 @@
+This tool is free, and will always be free. If you appreciate my work or tool, and feel like contributing, you can leave me a tip here: https://ko-fi.com/spocklsm
+
 # CoD Dedupe
 
 Keep Call of Duty installed through the **Xbox app, Steam and Battle.net** at the same time while storing the game data on disk **once**.
