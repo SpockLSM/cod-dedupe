@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 
@@ -20,6 +21,14 @@ public sealed class ShareResult
     public Dictionary<string, (long Before, long After)> FreeSpace { get; } = new();
     public TimeSpan Elapsed;
     public long Freed => FreeSpace.Values.Sum(v => v.After - v.Before);
+
+    readonly object _lock = new();
+    internal void AddAlreadyShared(long bytes) { lock (_lock) { AlreadyShared++; AlreadySharedBytes += bytes; } }
+    internal void AddLinked(long bytes) { lock (_lock) { Linked++; LinkedBytes += bytes; } }
+    internal void AddDiffer(long bytes) { lock (_lock) { Differ++; DifferBytes += bytes; } }
+    internal void AddError() { lock (_lock) Errors++; }
+    internal void AddLeftover() { lock (_lock) Leftovers++; }
+    internal long LinkedBytesNow { get { lock (_lock) return LinkedBytes; } }
 }
 
 public sealed class UnshareResult
@@ -41,7 +50,17 @@ public sealed class ShareEngine
     public const string CopySuffix = ".cod-shared.copy";
 
     readonly Action<string> _log;
+    readonly object _logLock = new();
+
+    /// <summary>Files compared at once. The compare is a sequential read of two files, so a few streams keep an SSD busy.</summary>
+    public int Parallelism { get; set; } = 4;
+
+    /// <summary>When set, a real run records every shared file here so later passes can spot in-place patches.</summary>
+    public ShareManifest? Manifest { get; set; }
+
     public ShareEngine(Action<string> log) { _log = log; }
+
+    void Log(string line) { lock (_logLock) _log(line); }
 
     public Dictionary<string, FileEntry> Inventory(Install install, bool dryRun, CancellationToken ct)
     {
@@ -70,11 +89,11 @@ public sealed class ShareEngine
     // Put back anything an interrupted run left half-done.
     void RepairLeftover(string path, bool dryRun)
     {
-        if (dryRun) { _log($"leftover from an interrupted run: {path}"); return; }
-        if (path.EndsWith(CopySuffix, StringComparison.OrdinalIgnoreCase)) { Native.Delete(path); _log($"removed partial copy {path}"); return; }
+        if (dryRun) { Log($"leftover from an interrupted run: {path}"); return; }
+        if (path.EndsWith(CopySuffix, StringComparison.OrdinalIgnoreCase)) { Native.Delete(path); Log($"removed partial copy {path}"); return; }
         string orig = path[..^TmpSuffix.Length];
-        if (File.Exists(orig)) { Native.Delete(path); _log($"removed leftover {path}"); }
-        else { File.Move(path, orig); _log($"restored leftover {path}"); }
+        if (File.Exists(orig)) { Native.Delete(path); Log($"removed leftover {path}"); }
+        else { File.Move(path, orig); Log($"restored leftover {path}"); }
     }
 
     /// <summary>Can we create hard links inside this install's folder?</summary>
@@ -90,7 +109,7 @@ public sealed class ShareEngine
         }
         catch (Exception ex)
         {
-            _log($"Can't create links in {target.Name}'s folder, so it is left out: {ex.Message}");
+            Log($"Can't create links in {target.Name}'s folder, so it is left out: {ex.Message}");
             return false;
         }
     }
@@ -105,7 +124,7 @@ public sealed class ShareEngine
             if (!result.FreeSpace.ContainsKey(g[0].Drive))
                 result.FreeSpace[g[0].Drive] = (new DriveInfo(g[0].Drive).AvailableFreeSpace, 0);
 
-        var equal = new Dictionary<string, bool>();   // "keptKey|otherKey" -> same bytes, so a file is read once per pair
+        var equal = new ConcurrentDictionary<string, bool>();   // "keptKey|otherKey" -> same bytes, so a file is read once per pair
         foreach (var members in groups)
         {
             ct.ThrowIfCancellationRequested();
@@ -114,7 +133,7 @@ public sealed class ShareEngine
             {
                 progress?.Report(new ShareProgress { Phase = $"Reading {m.Name}..." });
                 inv[m] = Inventory(m, dryRun, ct);
-                _log($"{m.Name}: {inv[m].Count:N0} game data files, {Gb(inv[m].Values.Sum(f => f.Size))}");
+                Log($"{m.Name}: {inv[m].Count:N0} game data files, {Gb(inv[m].Values.Sum(f => f.Size))}");
             }
 
             // Each store's folder must accept links before anything is relinked there.
@@ -129,52 +148,81 @@ public sealed class ShareEngine
             var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var m in members) keys.UnionWith(inv[m].Keys);
             var candidates = keys.Where(k => members.Count(m => inv[m].ContainsKey(k)) >= 2).OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList();
-            _log($"Comparing {candidates.Count:N0} files found in more than one store on {members[0].Drive}...");
+            Log($"Comparing {candidates.Count:N0} files found in more than one store on {members[0].Drive}, {Math.Max(1, Parallelism)} at a time...");
 
-            int done = 0;
-            foreach (var rel in candidates)
+            int done = 0, total = candidates.Count;
+            var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Parallelism), CancellationToken = ct };
+            Parallel.ForEach(candidates, options, rel =>
             {
-                ct.ThrowIfCancellationRequested();
-                if (++done % 100 == 0 || done == candidates.Count)
-                    progress?.Report(new ShareProgress { Phase = "Comparing and linking", Done = done, Total = candidates.Count, LinkedBytes = result.LinkedBytes });
-
-                var kept = new List<(Install Owner, FileEntry File, string Key)>();   // distinct copies so far, main store first
-                foreach (var m in members)
-                {
-                    if (!inv[m].TryGetValue(rel, out var f)) continue;
-                    try
-                    {
-                        string key = Native.FileKey(f.Path);
-                        bool matched = false;
-                        foreach (var k in kept)
-                        {
-                            if (k.File.Size != f.Size) continue;
-                            if (k.Key == key) { matched = true; result.AlreadyShared++; result.AlreadySharedBytes += f.Size; break; }
-                            string ck = k.Key + "|" + key;
-                            if (!equal.TryGetValue(ck, out bool same)) equal[ck] = same = Native.ContentEqual(k.File.Path, f.Path);
-                            if (!same) continue;
-                            matched = true;
-                            if (dryRun) _log($"would link [{m.Name}] {rel} -> [{k.Owner.Name}]");
-                            else Relink(f.Path, k.File.Path, m.Name, k.Owner.Name, rel, result);
-                            result.Linked++; result.LinkedBytes += f.Size;
-                            break;
-                        }
-                        if (!matched)
-                        {
-                            if (kept.Count > 0) { result.Differ++; result.DifferBytes += f.Size; _log($"differs, kept separate: [{m.Name}] {rel}"); }
-                            kept.Add((m, f, key));
-                        }
-                    }
-                    catch (OperationCanceledException) { throw; }
-                    catch (Exception ex) { result.Errors++; _log($"ERROR [{m.Name}] {rel}: {ex.Message}"); }
-                }
-            }
+                int n = Interlocked.Increment(ref done);
+                if (n % 100 == 0 || n == total)
+                    progress?.Report(new ShareProgress { Phase = "Comparing and linking", Done = n, Total = total, LinkedBytes = result.LinkedBytesNow });
+                CompareOne(members, inv, rel, dryRun, equal, result);
+            });
         }
 
         foreach (var d in result.FreeSpace.Keys.ToList())
             result.FreeSpace[d] = (result.FreeSpace[d].Before, new DriveInfo(d).AvailableFreeSpace);
         result.Elapsed = sw.Elapsed;
         return result;
+    }
+
+    /// <summary>One file name across the stores: the main store's copy is kept, identical copies elsewhere become links to it.</summary>
+    void CompareOne(List<Install> members, Dictionary<Install, Dictionary<string, FileEntry>> inv, string rel, bool dryRun,
+        ConcurrentDictionary<string, bool> equal, ShareResult result)
+    {
+        var kept = new List<(Install Owner, FileEntry File, string Key)>();   // distinct copies so far, main store first
+        foreach (var m in members)
+        {
+            if (!inv[m].TryGetValue(rel, out var f)) continue;
+            try
+            {
+                string key = Native.FileKey(f.Path);
+                bool matched = false;
+                foreach (var k in kept)
+                {
+                    if (k.File.Size != f.Size) continue;
+                    if (k.Key == key)
+                    {
+                        matched = true;
+                        result.AddAlreadyShared(f.Size);
+                        RecordShared(k.File.Path, f.Path, key, f.Size, dryRun);
+                        break;
+                    }
+                    string ck = k.Key + "|" + key;
+                    bool same = equal.GetOrAdd(ck, _ => Native.ContentEqual(k.File.Path, f.Path));
+                    if (!same) continue;
+                    matched = true;
+                    if (dryRun) Log($"would link [{m.Name}] {rel} -> [{k.Owner.Name}]");
+                    else
+                    {
+                        Relink(f.Path, k.File.Path, m.Name, k.Owner.Name, rel, result);
+                        RecordShared(k.File.Path, f.Path, k.Key, f.Size, dryRun);
+                    }
+                    result.AddLinked(f.Size);
+                    break;
+                }
+                if (!matched)
+                {
+                    if (kept.Count > 0) { result.AddDiffer(f.Size); Log($"differs, kept separate: [{m.Name}] {rel}"); }
+                    kept.Add((m, f, key));
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { result.AddError(); Log($"ERROR [{m.Name}] {rel}: {ex.Message}"); }
+        }
+    }
+
+    void RecordShared(string keptPath, string otherPath, string key, long size, bool dryRun)
+    {
+        if (dryRun || Manifest == null) return;
+        try
+        {
+            var write = File.GetLastWriteTimeUtc(keptPath);
+            Manifest.Record(keptPath, key, size, write);
+            Manifest.Record(otherPath, key, size, write);
+        }
+        catch { }
     }
 
     void Relink(string path, string keepPath, string name, string keptName, string rel, ShareResult result)
@@ -184,8 +232,8 @@ public sealed class ShareEngine
         try { Native.CreateHardLink(path, keepPath); }
         catch { File.Move(tmp, path); throw; }
         try { Native.Delete(tmp); }
-        catch (Exception ex) { result.Leftovers++; _log($"could not delete {tmp} (removed on the next run): {ex.Message}"); }
-        _log($"linked [{name}] {rel} -> [{keptName}]");
+        catch (Exception ex) { result.AddLeftover(); Log($"could not delete {tmp} (removed on the next run): {ex.Message}"); }
+        Log($"linked [{name}] {rel} -> [{keptName}]");
     }
 
     /// <summary>Files in this install that share their data with another install.</summary>
@@ -211,10 +259,11 @@ public sealed class ShareEngine
                 File.Move(copy, f.Path);
                 Native.Delete(tmp);
                 r.Files++; r.Bytes += f.Size;
-                _log($"unshared {f.Path}");
+                Manifest?.Forget(f.Path);
+                Log($"unshared {f.Path}");
             }
             catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { r.Errors++; _log($"ERROR {f.Path}: {ex.Message}"); }
+            catch (Exception ex) { r.Errors++; Log($"ERROR {f.Path}: {ex.Message}"); }
         }
         return r;
     }

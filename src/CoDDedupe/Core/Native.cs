@@ -36,11 +36,16 @@ public static class Native
         return info;
     }
 
+    static string KeyOf(in ByHandleFileInformation i) => $"{i.VolumeSerialNumber:X8}:{i.FileIndexHigh:X8}{i.FileIndexLow:X8}";
+
     /// <summary>Same key = same data on disk; the names are hard links of one file.</summary>
-    public static string FileKey(string path)
+    public static string FileKey(string path) => KeyOf(Info(path));
+
+    /// <summary>Key and link count from one open, for the measuring passes that need both.</summary>
+    public static (string Key, uint Links) Identity(string path)
     {
         var i = Info(path);
-        return $"{i.VolumeSerialNumber:X8}:{i.FileIndexHigh:X8}{i.FileIndexLow:X8}";
+        return (KeyOf(i), i.NumberOfLinks);
     }
 
     public static string VolumeKey(string path) => Info(path).VolumeSerialNumber.ToString("X8");

@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:CoDDedupe.ViewModels"
-        Title="CoD Dedupe" Width="980" Height="720" MinWidth="820" MinHeight="560"
+        Title="CoD Dedupe" Width="1000" Height="780" MinWidth="840" MinHeight="600"
         WindowStartupLocation="CenterScreen" Background="{DynamicResource WindowBg}"
         FontFamily="Segoe UI" FontSize="13" Foreground="{DynamicResource Text}"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
@@ -26,8 +26,10 @@
                             </Border>
                         </StackPanel>
                         <TextBlock Text="{Binding Root}" Foreground="{DynamicResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Root}"/>
-                        <TextBlock Text="{Binding Detail}" FontSize="12" Margin="0,2,0,0" Visibility="{Binding Detail, Converter={StaticResource BoolVis}}"/>
+                        <TextBlock Text="{Binding Detail}" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap" Visibility="{Binding Detail, Converter={StaticResource BoolVis}}"/>
                         <TextBlock Text="{Binding Note}" FontSize="12" Foreground="{DynamicResource WarnText}" Margin="0,2,0,0" Visibility="{Binding Note, Converter={StaticResource BoolVis}}"/>
+                        <TextBlock Text="{Binding Warning}" FontSize="12" Foreground="{DynamicResource WarnText}" Margin="0,2,0,0" TextWrapping="Wrap"
+                                   Visibility="{Binding Warning, Converter={StaticResource BoolVis}}"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -58,14 +60,26 @@
             </StackPanel>
         </DockPanel>
 
-        <!-- Launchers banner -->
-        <Border Grid.Row="1" Background="{DynamicResource WarnBg}" BorderBrush="{DynamicResource WarnBorder}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
-                Visibility="{Binding LaunchersRunning, Converter={StaticResource BoolVis}}">
-            <DockPanel>
-                <Button DockPanel.Dock="Right" Content="Check again" Command="{Binding CheckLaunchersCommand}" Padding="10,4"/>
-                <TextBlock Text="{Binding LaunchersText}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-            </DockPanel>
-        </Border>
+        <!-- Banners -->
+        <StackPanel Grid.Row="1">
+            <Border Background="{DynamicResource InfoBg}" BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+                    Visibility="{Binding HasUpdate, Converter={StaticResource BoolVis}}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="Download" Command="{Binding OpenUpdateCommand}" Margin="0,0,8,0"/>
+                        <Button Content="Not now" Command="{Binding DismissUpdateCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding UpdateText}" Foreground="{DynamicResource InfoText}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                </DockPanel>
+            </Border>
+            <Border Background="{DynamicResource WarnBg}" BorderBrush="{DynamicResource WarnBorder}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+                    Visibility="{Binding LaunchersRunning, Converter={StaticResource BoolVis}}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Check again" Command="{Binding CheckLaunchersCommand}" Padding="10,4"/>
+                    <TextBlock Text="{Binding LaunchersText}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+        </StackPanel>
 
         <!-- Installs -->
         <Border Grid.Row="2" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="8" Padding="16,12">
@@ -96,10 +110,28 @@
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Preview" Command="{Binding PreviewCommand}" Margin="0,0,8,0" ToolTip="Compare only; change nothing"/>
                         <Button Content="Share files" Style="{StaticResource PrimaryButton}" Command="{Binding ShareCommand}" MinWidth="130" Margin="0,0,8,0"/>
+                        <Button Content="After an update" Command="{Binding AfterUpdateCommand}" Margin="0,0,8,0"
+                                ToolTip="Share files, then have CoD Tweaker apply the preset chosen below"/>
                         <Button Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0" Visibility="{Binding CanCancel, Converter={StaticResource BoolVis}}"/>
                         <Button Content="Open logs" Command="{Binding OpenLogsCommand}"/>
                     </StackPanel>
                 </DockPanel>
+
+                <DockPanel Margin="0,10,0,0">
+                    <TextBlock Text="After an update, also apply this CoD Tweaker preset:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource Muted}" FontSize="12"/>
+                    <Button DockPanel.Dock="Right" Content="Clear" Command="{Binding ClearPresetCommand}" Padding="10,4" FontSize="12" Margin="6,0,0,0"
+                            Visibility="{Binding HasTweakerPreset, Converter={StaticResource BoolVis}}"/>
+                    <Button DockPanel.Dock="Right" Content="Choose..." Command="{Binding BrowsePresetCommand}" Padding="10,4" FontSize="12"/>
+                    <TextBlock Text="{Binding TweakerPresetDisplay}" VerticalAlignment="Center" FontSize="12" ToolTip="{Binding TweakerPreset}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                </DockPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <CheckBox IsChecked="{Binding WatchForUpdates}" Content="Watch for updates in the tray" FontSize="12"
+                              ToolTip="Keeps running after you close the window, checks now and then whether an update left files that could be shared again, and tells you"/>
+                    <CheckBox IsChecked="{Binding StartWithWindows}" Content="Start with Windows, hidden in the tray" FontSize="12" Margin="18,0,0,0"
+                              ToolTip="Adds CoD Dedupe to your Startup entries with --tray"/>
+                </StackPanel>
+
                 <Grid Margin="0,10,0,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolVis}}">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -125,6 +157,6 @@
         </Border>
 
         <TextBlock Grid.Row="5" Margin="2,8,2,0" Foreground="{DynamicResource Muted}" FontSize="12" TextWrapping="Wrap"
-                   Text="Run this again after every Call of Duty update, once every store has finished updating, to re-merge what the update split apart."/>
+                   Text="After every Call of Duty update, once every store has finished updating, click Share files (or After an update) to re-merge what the update split apart. A scheduled task can run CoDDedupe.exe --after-update instead."/>
     </Grid>
 </Window>

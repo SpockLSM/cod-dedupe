@@ -1,4 +1,5 @@
 using CoDDedupe.Core;
+using Spock.AppKit.Mvvm;
 
 namespace CoDDedupe.ViewModels;
 
@@ -22,6 +23,13 @@ public sealed class InstallVm : ObservableObject
 
     string _note = "";
     public string Note { get => _note; set => SetProperty(ref _note, value); }
+
+    string _warning = "";
+    /// <summary>Shared files an update patched in place; see <see cref="InstallStats.Warning"/>.</summary>
+    public string Warning { get => _warning; set => SetProperty(ref _warning, value); }
+
+    InstallStats? _stats;
+    public InstallStats? Stats { get => _stats; set { if (SetProperty(ref _stats, value)) { Detail = value?.Detail ?? ""; Warning = value?.Warning ?? ""; } } }
 
     public InstallVm(Install model) { Model = model; }
 

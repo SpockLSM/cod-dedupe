@@ -1,23 +1,41 @@
-using System.IO;
 using System.Windows;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using CoDDedupe.Core;
+using Spock.AppKit;
 
 namespace CoDDedupe;
 
 public partial class App : Application
 {
+    /// <summary>"--tray": start hidden in the tray (for Start with Windows).</summary>
+    public static bool StartInTray { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        // "--theme dark|light" for documentation; otherwise the saved choice, or whatever Windows is set to.
-        int t = Array.IndexOf(e.Args, "--theme");
-        Theme.Apply(Theme.FromSetting(t >= 0 && t + 1 < e.Args.Length ? e.Args[t + 1] : Core.Settings.Load().Theme));
+        CrashGuard.Install(this, "CoD Dedupe", Settings.LogFolder);
+
+        // "CoDDedupe.exe --share" and friends: no window, just do it and report through the console or a log file.
+        if (CliRun.Wanted(e.Args))
+        {
+            int code;
+            using (var log = CliLog.Open(Settings.LogFolder, "cli")) code = CliRun.Run(e.Args, log);
+            Shutdown(code);
+            return;
+        }
+
+        StartInTray = Array.IndexOf(e.Args, "--tray") >= 0;
+
+        // A documentation screenshot should show the app, not which store apps happen to be open right now.
+        if (Array.IndexOf(e.Args, "--screenshot") >= 0) Launchers.Override = () => new List<string>();
+
+        var settings = Settings.Load();
+        Theme.Apply(Theme.FromArgsOrSetting(e.Args, settings.Theme));
 
         var window = new MainWindow();
-        window.Show();
+        if (!StartInTray || !window.CanHideToTray) window.Show();
+        else window.HideToTray(firstTime: false);
 
-        // Hidden helper for documentation: CoDDedupe.exe --screenshot out.png
+        // Hidden helper for documentation and the CI smoke test: CoDDedupe.exe --screenshot out.png
         int i = Array.IndexOf(e.Args, "--screenshot");
         if (i >= 0 && i + 1 < e.Args.Length)
         {
@@ -25,29 +43,9 @@ public partial class App : Application
             window.ContentRendered += async (_, _) =>
             {
                 await Task.Delay(15000);   // let the install scan finish so the numbers show
-                SaveScreenshot(window, target);
-                Shutdown();
+                Shell.SaveScreenshot(window, target);
+                window.ExitApp();
             };
         }
-    }
-
-    static void SaveScreenshot(Window window, string path)
-    {
-        var root = (FrameworkElement)window.Content;
-        var dpi = VisualTreeHelper.GetDpi(root);
-        double w = root.ActualWidth + root.Margin.Left + root.Margin.Right;
-        double h = root.ActualHeight + root.Margin.Top + root.Margin.Bottom;
-        var visual = new DrawingVisual();
-        using (var dc = visual.RenderOpen())
-        {
-            dc.DrawRectangle(window.Background, null, new Rect(0, 0, w, h));
-            dc.DrawRectangle(new VisualBrush(root), null, new Rect(root.Margin.Left, root.Margin.Top, root.ActualWidth, root.ActualHeight));
-        }
-        var bmp = new RenderTargetBitmap((int)(w * dpi.DpiScaleX), (int)(h * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-        bmp.Render(visual);
-        var enc = new PngBitmapEncoder();
-        enc.Frames.Add(BitmapFrame.Create(bmp));
-        using var fs = File.Create(path);
-        enc.Save(fs);
     }
 }

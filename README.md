@@ -16,9 +16,11 @@ Each store keeps its own install folder. The app finds game data files that are 
 
 - **You pick a main store.** Its files are never modified. The other stores' copies are replaced with links to it.
 - **Only static game data is shared** (`.xsub`, `.xpak`, `.ff`, `.fp`). Executables, store files, shader caches and settings stay separate.
-- **Nothing is linked without a full byte-by-byte compare first.** If one store is on a different patch, whatever differs keeps its own copy.
+- **Nothing is linked without a full byte-by-byte compare first.** If one store is on a different patch, whatever differs keeps its own copy. Four files are compared at a time, so an SSD is kept busy.
 - **Hard links aren't shortcuts.** No store can tell the difference, and uninstalling one store leaves the other installs complete.
 - **Cancel any time.** Each file is either linked or still a normal file; nothing is left half-done.
+- **Each install is measured** when the app opens: how much is shared, how much is **not shared yet** (what an update split apart), and how much exists **only in that store** (content packs the other stores never installed).
+- **In-place patches are noticed.** The app remembers what it shared. If a later update rewrites a shared file in place, every store sharing it got the patched bytes; the app says so under the install, so you know to run the other stores' repair if they complain.
 - **Light and dark**: follows your Windows setting, or pick one with the button in the corner.
 
 ## Requirements
@@ -29,7 +31,7 @@ Each store keeps its own install folder. The app finds game data files that are 
 
 ## Use it
 
-1. Download `CoDDedupe.exe` from the [latest release](../../releases/latest) and run it. Nothing to install.
+1. Download `CoDDedupe.exe` from the [latest release](../../releases/latest) and run it. Nothing to install. (The `-small-needs-dotnet10` build is a fraction of the size but needs the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download).)
 2. Close Call of Duty, Steam, Battle.net and the Xbox app, and make sure nothing is downloading. The app tells you if any are still open.
 3. Your installs are listed automatically. Pick your **main store**: the one you play from most.
 4. **Preview** shows what would be shared without changing anything. **Share files** does it. The first run reads every file, which takes a few minutes per 100 GB.
@@ -38,7 +40,18 @@ Each store keeps its own install folder. The app finds game data files that are 
 
 ### After every Call of Duty update
 
-Updates can split shared files back into separate copies. That costs space but never breaks anything. Once **every** store has finished updating, open the app and click **Share files** again to merge them back.
+Updates can split shared files back into separate copies. That costs space but never breaks anything. Once **every** store has finished updating, the app's hint line says how much is not shared yet; click **Share files** to merge it back. Three ways to make that routine:
+
+- **After an update** does the share and then hands a [CoD Tweaker](https://github.com/SpockLSM/cod-tweaker) preset to CoD Tweaker, so your settings come back in the same click (pick the preset under the buttons; CoD Tweaker is found through its own settings once it has run).
+- **Watch for updates in the tray** keeps the app running after you close the window. Now and then, while no store app is open, it measures the installs and tells you with a notification when an update left files that could be shared again. **Start with Windows** puts it in the tray at logon.
+- From a script or a scheduled task:
+
+  ```text
+  CoDDedupe.exe --share | --preview | --after-update | --unshare Steam
+                [--main Xbox|Steam|Battle.net] [--folder <install> ...] [--no-discover] [--preset file.json] [--tweaker CoDTweaker.exe]
+  ```
+
+  `--main` and `--unshare` take a store name or the install folder; `--folder` adds installs the app can't find by itself, and `--no-discover` uses only those. Nothing is shown; the result is printed to the console when started from one and always written to `%LOCALAPPDATA%\CodSharedInstall\logs`. Exit code 0 means done, 1 an error, 2 the game or a store app was open (nothing changed), 3 no installs or no main store.
 
 If a store ever says files are damaged, run that store's repair, then share again:
 
@@ -46,7 +59,7 @@ If a store ever says files are damaged, run that store's repair, then share agai
 - **Battle.net:** the cog next to Play > Scan and Repair.
 - **Xbox app:** Manage > Files > Verify and repair.
 
-This can happen when stores are on different patches and one of them updates a shared file in place.
+This can happen when stores are on different patches and one of them updates a shared file in place; the app points at the install where that happened.
 
 ### Undo
 
@@ -56,8 +69,9 @@ There's nothing to undo to keep things working: every store already has complete
 
 | | |
 |---|---|
-| Your main-store choice | `%LOCALAPPDATA%\CodSharedInstall\settings.json` |
-| A log of every run | `%LOCALAPPDATA%\CodSharedInstall\logs` (the **Open logs** button) |
+| Your main-store choice and preferences | `%LOCALAPPDATA%\CodSharedInstall\settings.json` |
+| What the last share linked | `%LOCALAPPDATA%\CodSharedInstall\shared-manifest.json` |
+| A log of every run, and crash logs | `%LOCALAPPDATA%\CodSharedInstall\logs` (the **Open logs** button) |
 
 If an install isn't found, use **Add folder...** and pick its folder.
 
@@ -69,9 +83,13 @@ If an install isn't found, use **Add folder...** and pick its folder.
 
 **One store is a patch behind. Is that a problem?** No. Files that differ aren't linked, so each store keeps the version it needs. Update every store, then share again.
 
+**Why is one install so much bigger than the others?** Stores install different optional content. The "only in this store" figure under each install is that content; it has no twin to share with.
+
 **Is my main store's install ever changed?** No. Only the other stores' folders are written to.
 
 **My installs are on different drives.** Move one of them with its store's own move option so they're on the same drive, then click Refresh.
+
+**Something crashed.** A `crash-*.txt` in the logs folder has the details; your game files are never touched by a crash.
 
 ## How it finds your installs
 
@@ -85,18 +103,20 @@ If an install isn't found, use **Add folder...** and pick its folder.
 
 Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
-```
+```text
 dotnet build CoDDedupe.slnx -c Release
 dotnet test
 ```
 
 To make the single-file exe that the releases ship:
 
-```
+```text
 dotnet publish src/CoDDedupe/CoDDedupe.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish
 ```
 
-Releases are built by GitHub Actions: push a tag such as `v1.2.0` and the exe is attached to a release automatically.
+Releases are built by GitHub Actions: push a tag such as `v1.2.0` and both exes are attached to a release automatically. Every build also starts the published exe and takes a screenshot, so a build that cannot open its window never ships.
+
+The themes, tray icon, crash log and update check live in [Spock.AppKit](https://github.com/SpockLSM/appkit), shared with CoD Tweaker. A copy is vendored under `shared/appkit` with `git subtree`, so a plain clone builds with nothing else to fetch; `git subtree pull --prefix shared/appkit https://github.com/SpockLSM/appkit.git main --squash` brings in a newer kit.
 
 The original PowerShell version of this tool is in [`legacy/`](legacy/) (tag `script-1.0`). It does the same job from a console and uses the same settings file.
 

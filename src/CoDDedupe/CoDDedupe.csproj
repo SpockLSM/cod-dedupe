@@ -10,7 +10,8 @@
     <AssemblyName>CoDDedupe</AssemblyName>
     <RootNamespace>CoDDedupe</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.0.0</Version>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>1.2.0</Version>
     <Product>CoD Dedupe</Product>
     <Authors>Spock</Authors>
     <Copyright>Copyright (c) 2026 Spock</Copyright>
@@ -18,5 +19,10 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <DebugType>embedded</DebugType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The plumbing shared with CoD Tweaker, vendored from github.com/SpockLSM/appkit with git subtree. -->
+    <ProjectReference Include="..\..\shared\appkit\src\Spock.AppKit\Spock.AppKit.csproj" />
+  </ItemGroup>
 
 </Project>

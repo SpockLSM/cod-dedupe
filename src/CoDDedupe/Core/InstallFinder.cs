@@ -21,8 +21,12 @@ public static class InstallFinder
     const string BattleNetProduct = "auks";           // "Call of Duty" (the HQ) on Battle.net
     const string XboxIdentity = "38985CA0.COREBase";  // "Call of Duty" (the HQ) on the Xbox app
 
+    /// <summary>Tests plug in a fake answer here so they never see the real installs on the PC.</summary>
+    public static Func<List<Install>>? DiscoveryOverride { get; set; }
+
     public static List<Install> FindAll(IReadOnlyDictionary<Store, string>? overrides = null)
     {
+        if (DiscoveryOverride != null) return DiscoveryOverride();
         var list = new List<Install>();
         foreach (var store in new[] { Store.Xbox, Store.Steam, Store.BattleNet })
         {
