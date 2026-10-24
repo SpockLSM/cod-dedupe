@@ -42,6 +42,8 @@ Each store keeps its own install folder. The app finds game data files that are 
 
 > **Windows SmartScreen** may warn that the app is unrecognised, because it isn't code-signed. Click *More info > Run anyway*. The source is here if you'd rather build it yourself (see below).
 
+Once the package is in the [winget community repository](https://github.com/microsoft/winget-pkgs), `winget install SpockLSM.CoDDedupe` installs it and `winget upgrade` keeps it current; the manifests are kept under [`winget/`](winget/).
+
 ### After every Call of Duty update
 
 Updates can split shared files back into separate copies. That costs space but never breaks anything. Once **every** store has finished updating, the app's hint line says how much is not shared yet; click **Share files** to merge it back. Three ways to make that routine:

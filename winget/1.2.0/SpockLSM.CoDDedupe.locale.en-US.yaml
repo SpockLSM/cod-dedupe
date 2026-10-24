@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: SpockLSM.CoDDedupe
+PackageVersion: 1.2.0
+PackageLocale: en-US
+Publisher: Spock
+PublisherUrl: https://github.com/SpockLSM
+PublisherSupportUrl: https://github.com/SpockLSM/cod-dedupe/issues
+PackageName: CoD Dedupe
+PackageUrl: https://github.com/SpockLSM/cod-dedupe
+License: MIT
+LicenseUrl: https://github.com/SpockLSM/cod-dedupe/blob/main/LICENSE
+Copyright: Copyright (c) 2026 Spock
+ShortDescription: "Keep Call of Duty installed through the Xbox app, Steam and Battle.net while storing the game data once"
+Description: "Finds your Call of Duty installs from the Xbox app, Steam and Battle.net and turns byte-identical game data files into NTFS hard links, so three installs take the space of one. Every file is compared byte by byte first; the main store is never modified; a share can be undone per store. Measures what is shared, notices files an update patched in place, and can run from a scheduled task after updates."
+Tags:
+- call-of-duty
+- cod
+- dedupe
+- hard-links
+- disk-space
+- gaming
+ReleaseNotesUrl: https://github.com/SpockLSM/cod-dedupe/releases/tag/v1.2.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
